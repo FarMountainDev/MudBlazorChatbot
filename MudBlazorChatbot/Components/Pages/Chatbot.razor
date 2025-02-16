@@ -1,0 +1,261 @@
+﻿@page "/"
+@rendermode InteractiveServer
+@attribute [StreamRendering]
+@inject IJSRuntime Js
+
+<PageTitle>MudBlazor Chatbot</PageTitle>
+
+<MudAppBar Color="Color.Default" Fixed="true">
+    <MudGrid Justify="Justify.Center">
+        <MudItem xs="4" Class="d-flex align-center justify-center mud-width-full">
+            @if (ollama is not null && models.Any())
+            {
+                <MudMenu Label="@(models.Any() && ollama?.SelectedModel is not null ? ollama.SelectedModel : "Choose a model")" Variant="Variant.Filled" Dense="true" FullWidth="true"
+                         EndIcon="@Icons.Material.Filled.KeyboardArrowDown" IconColor="Color.Secondary">
+                    <MudMenuItem Icon="@Icons.Material.Filled.Download" IconColor="Color.Tertiary">
+                        Download Additional Models
+                    </MudMenuItem>
+                    @foreach (var model in models)
+                    {
+                        <MudMenuItem @onclick="() => SetSelectedModel(model.Name)">@model.Name</MudMenuItem>
+                    }
+                </MudMenu>
+                <MudSpacer />
+            }
+            else if (!errorLoadingOllamaApi)
+            {
+                <MudProgressCircular Color="Color.Primary" Size="Size.Small" Indeterminate="true"/>
+            }
+        </MudItem>
+        <MudItem xs="4" Class="d-flex align-center justify-center mud-width-full">
+            <MudText Typo="Typo.h5" Class="">MudBlazor Chatbot</MudText>
+        </MudItem>
+        <MudItem xs="4" Class="d-flex align-center justify-center mud-width-full">
+            <MudSpacer />
+            <MudIconButton Href="https://github.com/" Icon="@Icons.Custom.Brands.GitHub" Color="Color.Inherit" Edge="Edge.End"/>
+        </MudItem>
+    </MudGrid>
+</MudAppBar>
+
+<!-- Chat Container -->
+<MudContainer MaxWidth="MaxWidth.Medium" Class="full-height-container">
+    @if (ollama?.SelectedModel != null && models.Any() && !errorLoadingOllamaApi)
+    {
+        <MudAlert Severity="Severity.Normal">Starting a chat with <b>@ollama.SelectedModel</b></MudAlert>
+    }
+    else if (errorLoadingOllamaApi)
+    {
+        <MudAlert Severity="Severity.Error">Unable to load Ollama Api. Please make sure Ollama is running and refresh the page.</MudAlert>
+    }
+    @foreach (var chatBubble in chatBubbles)
+    {
+        <MudPaper Class="@GetChatBubbleClass(chatBubble)">
+            @if (!string.IsNullOrWhiteSpace(chatBubble.PromptText))
+            {
+                <MudText>@(chatBubble.PromptText)</MudText>
+            }
+            @if (!string.IsNullOrWhiteSpace(chatBubble.ThinkText))
+            {
+                <MudText>@((MarkupString)chatBubble.ThinkText)</MudText><br/>
+            }
+            @if (!string.IsNullOrWhiteSpace(chatBubble.ResponseText))
+            {
+                <MudMarkdown Value="@chatBubble.ResponseText" CodeBlockTheme="CodeBlockTheme.Dark"/>
+            }
+        </MudPaper>
+    }
+    @if (streamingResponse != "")
+    {
+        // Display streaming response here. When the response is complete, it will be added to the chat collection
+        <MudPaper Class="chat-bubble chat-bubble-bot">
+            @if (!string.IsNullOrWhiteSpace(thinkResponse))
+            {
+                <MudText>@((MarkupString)thinkResponse)</MudText><br/>
+            }
+            @if (!string.IsNullOrWhiteSpace(markdownResponse))
+            {
+                <MudMarkdown Value="@markdownResponse" CodeBlockTheme="CodeBlockTheme.Dark"/>
+            }
+        </MudPaper>
+    }
+</MudContainer>
+
+<!-- Prompt Container -->
+<MudContainer MaxWidth="MaxWidth.Medium" Class="fixed-bottom-prompt">
+    <MudGrid Justify="Justify.Center">
+        <MudItem xs="10">
+            <MudTextField T="string" Label="Enter Your Prompt" Lines="3" Variant="Variant.Outlined"
+                          @bind-value="prompt" Disabled="thinking" />
+        </MudItem>
+        <MudItem xs="2" Class="d-flex align-center justify-center mud-width-full">
+            @if (thinking || (!models.Any() && !errorLoadingOllamaApi))
+            {
+                <MudProgressCircular Color="Color.Primary" Size="Size.Small" Indeterminate="true"/>
+            }
+            else
+            {
+                <MudButton Variant="Variant.Filled" Color="Color.Dark" FullWidth="true" Style="height: 80px"
+                           StartIcon="@Icons.Material.Filled.PlayArrow" IconColor="Color.Tertiary"
+                           Disabled="thinking || !models.Any() || errorLoadingOllamaApi" @onclick="SubmitPrompt">
+                    Submit
+                </MudButton>
+            }
+        </MudItem>
+    </MudGrid>
+</MudContainer>
+
+<script>
+    // This script is used to scroll to the bottom of the chat container when new messages are added
+    // If the user scrolls up, the chat will stop scrolling to the bottom
+    let shouldScroll = true;
+    let lastScrollTop = 0;
+    const scrollThreshold = 50; // Adjust this value as needed
+
+    function handleScroll() {
+        const scrollTop = window.scrollY;
+        const scrollHeight = document.body.scrollHeight;
+        const clientHeight = window.innerHeight;
+
+        if (scrollTop < lastScrollTop) {
+            // User is scrolling up
+            shouldScroll = false;
+        } else if (scrollTop + clientHeight + scrollThreshold >= scrollHeight) {
+            // User is scrolling down and gets close to the bottom
+            shouldScroll = true;
+        }
+
+        lastScrollTop = scrollTop <= 0 ? 0 : scrollTop; // For Mobile or negative scrolling
+    }
+
+    function scrollToBottom() {
+        if (shouldScroll) {
+            window.scrollTo(0, document.body.scrollHeight);
+        }
+    }
+
+    window.addEventListener('scroll', handleScroll);
+</script>
+
+@code {
+    private readonly Uri uri = new Uri("http://localhost:11434");
+    private OllamaApiClient? ollama;
+    private Chat? chat;
+    private IEnumerable<Model> models = new List<Model>();
+    private IEnumerable<ChatBubble> chatBubbles = new List<ChatBubble>();
+    
+    private string prompt = "Tell me something good";
+    private string streamingResponse = "";
+    private string thinkResponse = "";
+    private string markdownResponse = "";
+    
+    private bool thinking = false;
+    private bool errorLoadingOllamaApi = false;
+    
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            ollama = new OllamaApiClient(uri);
+            models = await ollama.ListLocalModelsAsync();
+            SetSelectedModel("deepseek-r1:1.5b");
+        }
+        catch
+        {
+            errorLoadingOllamaApi = true;
+        }
+    }
+    
+    private void SetSelectedModel(string model)
+    {
+        if (ollama is null) return;
+        ollama.SelectedModel = model;
+        chat = new Chat(ollama);
+        chatBubbles = new List<ChatBubble>();
+    }
+
+    /// <summary>
+    /// 
+    /// </summary>
+    private async Task SubmitPrompt()
+    {
+        if (ollama is null) return;
+        
+        thinking = true;
+        streamingResponse = "";
+        chat ??= new Chat(ollama);
+
+        chatBubbles = chatBubbles.Append(new ChatBubble
+        {
+            PromptText = prompt,
+            IsUser = true
+        });
+        
+        await foreach (var answerToken in chat.SendAsync(prompt))
+        {
+            streamingResponse += answerToken;
+            markdownResponse = streamingResponse;
+            ProcessStreamingResponse();
+            StateHasChanged();
+            await ScrollToBottom();
+        }
+        
+        var responseBubble = new ChatBubble
+        {
+            ThinkText = thinkResponse,
+            ResponseText = markdownResponse,
+            IsUser = false
+        };
+        
+        chatBubbles = chatBubbles.Append(responseBubble);
+        
+        // Reset prompt and response
+        streamingResponse = markdownResponse = thinkResponse = prompt = "";
+        thinking = false;
+    }
+    
+    /// <summary>
+    /// For models that sometimes include a <think>response</think> block, this method will separate that section from
+    /// the rest of the response. These sections do not always display correctly with MudMarkdown, so they must be
+    /// handled differently.
+    /// </summary>
+    private void ProcessStreamingResponse()
+    {
+        thinkResponse = "";
+        markdownResponse = streamingResponse;
+        
+        if (string.IsNullOrWhiteSpace(streamingResponse)) return;
+        var startIndex = streamingResponse.IndexOf("<think>", StringComparison.OrdinalIgnoreCase);
+        if (startIndex == -1) return;
+        var endIndex = streamingResponse.IndexOf("</think>", startIndex, StringComparison.OrdinalIgnoreCase);
+        if (endIndex != -1)
+        {
+            endIndex += "</think>".Length;
+            thinkResponse = streamingResponse.Substring(startIndex, endIndex - startIndex);
+            markdownResponse = streamingResponse.Remove(startIndex, endIndex - startIndex);
+        }
+        else
+        {
+            thinkResponse = streamingResponse[startIndex..];
+            markdownResponse = streamingResponse.Remove(startIndex);
+        }
+        
+        thinkResponse = EncodeHtmlTags(thinkResponse);
+        thinkResponse = thinkResponse.Replace("\n", "<br/>");
+    }
+    
+    private async Task ScrollToBottom()
+    {
+        await Js.InvokeVoidAsync("scrollToBottom");
+    }
+
+    private static string EncodeHtmlTags(string text)
+    {
+        return text.Replace("<", "&lt;").Replace(">", "&gt;");
+    }
+    
+    private static string GetChatBubbleClass(ChatBubble chatBubble)
+    {
+        return chatBubble.IsUser ? "chat-bubble chat-bubble-user" 
+            : "chat-bubble chat-bubble-bot";
+    }
+}

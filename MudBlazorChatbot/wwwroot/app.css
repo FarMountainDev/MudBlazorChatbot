@@ -1,0 +1,68 @@
+* {
+    margin: 0;
+    box-sizing: border-box;
+}
+
+html, body {
+    height: 100%;
+}
+
+:root {
+    --chat-bubble-user: rgb(45,37,49);
+    --chat-bubble-bot: rgb(31,32,48);
+}
+
+/* Mud-Typography default heading font sizes are way too big */
+.h1 {
+    font-size: 1.8rem;
+}
+
+.h2 {
+    font-size: 1.6rem;
+}
+
+.h3 {
+    font-size: 1.4rem;
+}
+
+.h4 {
+    font-size: 1.2rem;
+}
+
+p.mud-typography {
+    margin: 0 0 !important;
+    padding: 0 !important;
+}
+
+/* Chatbot styles */
+.full-height-container {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    min-height: 100vh;
+    padding-top: 75px;
+    padding-bottom: 125px;
+}
+
+.fixed-bottom-prompt {
+    position: fixed;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 25px 10px 10px;
+    background: rgb(50,51,61);
+    background: linear-gradient(0deg, rgba(50,51,61,1) 0%, rgba(50,51,61,1) 80%, rgba(50,51,61,0) 100%);
+}
+
+.chat-bubble {
+    margin: 10px 0;
+    padding: 10px;
+}
+
+.chat-bubble-bot {
+    background-color: var(--chat-bubble-bot);
+}
+
+.chat-bubble-user {
+    background-color: var(--chat-bubble-user);
+}
