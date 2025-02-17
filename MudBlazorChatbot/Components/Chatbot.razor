@@ -1,56 +1,15 @@
-﻿@page "/"
-@rendermode InteractiveServer
-@attribute [StreamRendering]
+﻿@rendermode InteractiveServer
 @inject IJSRuntime Js
-@inject IConfiguration Config
-
-<PageTitle>MudBlazor Chatbot</PageTitle>
-
-<MudAppBar Color="Color.Default" Fixed="true">
-    <MudGrid Justify="Justify.Center">
-        <MudItem xs="4" Class="d-flex align-center justify-center mud-width-full">
-            @if (ollama is not null && models.Any())
-            {
-                <MudMenu Label="@(models.Any() && ollama?.SelectedModel is not null ? ollama.SelectedModel : "Choose a model")" Variant="Variant.Filled" Dense="true" FullWidth="true"
-                         EndIcon="@Icons.Material.Filled.KeyboardArrowDown" IconColor="Color.Secondary">
-                    <MudMenuItem Icon="@Icons.Material.Filled.Download" IconColor="Color.Tertiary">
-                        Download Additional Models
-                    </MudMenuItem>
-                    @foreach (var model in models)
-                    {
-                        <MudMenuItem @onclick="() => SetSelectedModel(model.Name)">@model.Name</MudMenuItem>
-                    }
-                </MudMenu>
-                <MudSpacer />
-            }
-            else if (!errorLoadingOllamaApi)
-            {
-                <MudProgressCircular Color="Color.Primary" Size="Size.Small" Indeterminate="true"/>
-            }
-        </MudItem>
-        <MudItem xs="4" Class="d-flex align-center justify-center mud-width-full">
-            <MudText Typo="Typo.h5" Class="">MudBlazor Chatbot</MudText>
-        </MudItem>
-        <MudItem xs="4" Class="d-flex align-center justify-center mud-width-full">
-            <MudSpacer />
-            <MudIconButton Href="https://github.com/Garrett-Hub/MudBlazorChatbot" Icon="@Icons.Custom.Brands.GitHub" Color="Color.Inherit" Edge="Edge.End"/>
-        </MudItem>
-    </MudGrid>
-</MudAppBar>
 
 <!-- Chat Container -->
 <MudContainer MaxWidth="MaxWidth.Medium" Class="full-height-container">
-    @if (ollama?.SelectedModel != null && models.Any() && !errorLoadingOllamaApi)
+    @if (Ollama is not null && !string.IsNullOrWhiteSpace(Ollama.SelectedModel))
     {
-        <MudAlert Severity="Severity.Normal">Starting a chat with <b>@ollama.SelectedModel</b></MudAlert>
-    }
-    else if (errorLoadingOllamaApi)
-    {
-        <MudAlert Severity="Severity.Error">Unable to load Ollama Api. Please make sure Ollama is running and refresh the page.</MudAlert>
+        <MudAlert Severity="Severity.Normal">Starting a chat with <b>@Ollama.SelectedModel</b></MudAlert>
     }
     @foreach (var chatBubble in chatBubbles)
     {
-        <MudPaper Class="@GetChatBubbleClass(chatBubble)">
+        <MudPaper Class="@GetChatBubbleClass(chatBubble.IsUser)">
             @if (!string.IsNullOrWhiteSpace(chatBubble.PromptText))
             {
                 <MudText>@(chatBubble.PromptText)</MudText>
@@ -89,7 +48,7 @@
                           @bind-value="prompt" Disabled="thinking" />
         </MudItem>
         <MudItem xs="2" Class="d-flex align-center justify-center mud-width-full">
-            @if (thinking || (!models.Any() && !errorLoadingOllamaApi))
+            @if (thinking || Ollama is null || string.IsNullOrWhiteSpace(Ollama.SelectedModel))
             {
                 <MudProgressCircular Color="Color.Primary" Size="Size.Small" Indeterminate="true"/>
             }
@@ -97,7 +56,7 @@
             {
                 <MudButton Variant="Variant.Filled" Color="Color.Dark" FullWidth="true" Style="height: 80px"
                            StartIcon="@Icons.Material.Filled.PlayArrow" IconColor="Color.Tertiary"
-                           Disabled="thinking || !models.Any() || errorLoadingOllamaApi" @onclick="SubmitPrompt">
+                           Disabled="thinking || Ollama is null" @onclick="SubmitPrompt">
                     Submit
                 </MudButton>
             }
@@ -105,84 +64,34 @@
     </MudGrid>
 </MudContainer>
 
-<script>
-    // This script is used to scroll to the bottom of the chat container when new messages are added
-    // If the user scrolls up, the chat will stop scrolling to the bottom
-    let shouldScroll = true;
-    let lastScrollTop = 0;
-    const scrollThreshold = 50; // Adjust this value as needed
-
-    function handleScroll() {
-        const scrollTop = window.scrollY;
-        const scrollHeight = document.body.scrollHeight;
-        const clientHeight = window.innerHeight;
-
-        if (scrollTop < lastScrollTop) {
-            // User is scrolling up
-            shouldScroll = false;
-        } else if (scrollTop + clientHeight + scrollThreshold >= scrollHeight) {
-            // User is scrolling down and gets close to the bottom
-            shouldScroll = true;
-        }
-
-        lastScrollTop = scrollTop <= 0 ? 0 : scrollTop; // For Mobile or negative scrolling
-    }
-
-    function scrollToBottom() {
-        if (shouldScroll) {
-            window.scrollTo(0, document.body.scrollHeight);
-        }
-    }
-
-    window.addEventListener('scroll', handleScroll);
-</script>
-
 @code {
-    private OllamaApiClient? ollama;
+    [Parameter] public OllamaApiClient? Ollama { get; set; }
+    
     private Chat? chat;
-    private IEnumerable<Model> models = new List<Model>();
     private IEnumerable<ChatBubble> chatBubbles = new List<ChatBubble>();
     
     private string prompt = "Tell me something good";
-    private string streamingResponse = "";
-    private string thinkResponse = "";
-    private string markdownResponse = "";
+    private string streamingResponse = string.Empty;
+    private string thinkResponse = string.Empty;
+    private string markdownResponse = string.Empty;
     
     private bool thinking = false;
-    private bool errorLoadingOllamaApi = false;
-    
-    protected override async Task OnInitializedAsync()
+
+    public void SetSelectedModel(string model)
     {
-        try
-        {
-            ollama = new OllamaApiClient(Config["OllamaUri"]!);
-            models = await ollama.ListLocalModelsAsync();
-            SetSelectedModel("deepseek-r1:1.5b");
-        }
-        catch
-        {
-            errorLoadingOllamaApi = true;
-        }
-    }
-    
-    private void SetSelectedModel(string model)
-    {
-        if (ollama is null) return;
-        ollama.SelectedModel = model;
-        chat = new Chat(ollama);
+        if (Ollama is null) return;
+        Ollama.SelectedModel = model;
+        chat = new Chat(Ollama);
         chatBubbles = new List<ChatBubble>();
     }
-
-    /// <summary>
-    /// 
-    /// </summary>
+    
     private async Task SubmitPrompt()
     {
-        if (ollama is null) return;
+        if (Ollama is null) return;
         
         thinking = true;
         streamingResponse = "";
-        chat ??= new Chat(ollama);
+        chat ??= new Chat(Ollama);
 
         chatBubbles = chatBubbles.Append(new ChatBubble
         {
@@ -253,9 +162,9 @@
         return text.Replace("<", "&lt;").Replace(">", "&gt;");
     }
     
-    private static string GetChatBubbleClass(ChatBubble chatBubble)
+    private static string GetChatBubbleClass(bool isUser)
     {
-        return chatBubble.IsUser ? "chat-bubble chat-bubble-user" 
+        return isUser ? "chat-bubble chat-bubble-user" 
             : "chat-bubble chat-bubble-bot";
     }
 }

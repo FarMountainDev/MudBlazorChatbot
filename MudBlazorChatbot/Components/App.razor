@@ -22,6 +22,37 @@
 <script src="_framework/blazor.web.js"></script>
 <script src="_content/MudBlazor/MudBlazor.min.js"></script>
 <script src="_content/MudBlazor.Markdown/MudBlazor.Markdown.min.js"></script>
+<script>
+    // This script is used to scroll to the bottom of the chat container when new messages are added
+    // If the user scrolls up, the chat will stop scrolling to the bottom
+    let shouldScroll = true;
+    let lastScrollTop = 0;
+    const scrollThreshold = 50; // Adjust this value as needed
+
+    function handleScroll() {
+        const scrollTop = window.scrollY;
+        const scrollHeight = document.body.scrollHeight;
+        const clientHeight = window.innerHeight;
+
+        if (scrollTop < lastScrollTop) {
+            // User is scrolling up
+            shouldScroll = false;
+        } else if (scrollTop + clientHeight + scrollThreshold >= scrollHeight) {
+            // User is scrolling down and gets close to the bottom
+            shouldScroll = true;
+        }
+
+        lastScrollTop = scrollTop <= 0 ? 0 : scrollTop; // For Mobile or negative scrolling
+    }
+
+    function scrollToBottom() {
+        if (shouldScroll) {
+            window.scrollTo(0, document.body.scrollHeight);
+        }
+    }
+
+    window.addEventListener('scroll', handleScroll);
+</script>
 </body>
 
 </html>

@@ -1,0 +1,88 @@
+﻿@page "/"
+@rendermode InteractiveServer
+@attribute [StreamRendering]
+@inject IConfiguration Config
+
+<PageTitle>MudBlazor Chatbot</PageTitle>
+
+<MudAppBar Color="Color.Default" Fixed="true">
+    <MudGrid Justify="Justify.Center">
+        <MudItem xs="4" Class="d-flex align-center justify-center mud-width-full">
+            @if (ollama is not null && !loadingOllama)
+            {
+                <MudMenu Label="@(models.Any() && !string.IsNullOrWhiteSpace(ollama.SelectedModel) ? ollama.SelectedModel : "Choose a model")" Variant="Variant.Filled" Dense="true" FullWidth="true"
+                         EndIcon="@Icons.Material.Filled.KeyboardArrowDown" IconColor="Color.Secondary">
+                    <MudMenuItem Icon="@Icons.Material.Filled.Download" IconColor="Color.Tertiary">
+                        Download Additional Models
+                    </MudMenuItem>
+                    @foreach (var model in models)
+                    {
+                        <MudMenuItem @onclick="() => chatbot.SetSelectedModel(model.Name)">@model.Name</MudMenuItem>
+                    }
+                </MudMenu>
+                <MudSpacer />
+            }
+            else if (loadingOllama)
+            {
+                <MudProgressCircular Color="Color.Primary" Size="Size.Small" Indeterminate="true"/>
+            }
+        </MudItem>
+        <MudItem xs="4" Class="d-flex align-center justify-center mud-width-full">
+            <MudText Typo="Typo.h5" Class="">MudBlazor Chatbot</MudText>
+        </MudItem>
+        <MudItem xs="4" Class="d-flex align-center justify-center mud-width-full">
+            <MudSpacer />
+            <MudIconButton Href="https://github.com/Garrett-Hub/MudBlazorChatbot" Icon="@Icons.Custom.Brands.GitHub" Color="Color.Inherit" Edge="Edge.End"/>
+        </MudItem>
+    </MudGrid>
+</MudAppBar>
+
+@if (ollama is not null && models.Any())
+{
+    <Chatbot @ref="chatbot" Ollama="ollama" />
+}
+else if (!loadingOllama)
+{
+    <MudContainer MaxWidth="MaxWidth.Medium" Style="padding-top: 100px;">
+    @if (ollama is null)
+    {
+        <MudAlert Severity="Severity.Error">Failed to connect to Ollama Api. Please check the configuration, make sure Ollama is running, and try again.</MudAlert>
+    }
+    else if (!models.Any())
+    {
+        <MudAlert Severity="Severity.Warning">Connected to Ollama Api, but no models were found. Please download a model to begin chatting.</MudAlert>
+    }
+    </MudContainer>
+}
+
+
+@code {
+    private OllamaApiClient? ollama;
+    private IEnumerable<Model> models = new List<Model>();
+    private Chatbot? chatbot;
+
+    private bool loadingOllama;
+    
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            loadingOllama = true;
+            ollama = new OllamaApiClient(Config["OllamaUri"]!);
+            models = await ollama.ListLocalModelsAsync();
+        }
+        catch
+        {
+            ollama = null;
+        }
+        finally
+        {
+            loadingOllama = false;
+            StateHasChanged();
+            if (models.Any() && chatbot is not null)
+            {
+                chatbot.SetSelectedModel(models.First().Name);
+            }
+        }
+    }
+}
