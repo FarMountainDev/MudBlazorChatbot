@@ -1,0 +1,56 @@
+﻿<MudDialog>
+    <TitleContent>
+        Delete @(ModelName)?
+    </TitleContent>
+    <DialogContent>
+        <MudText>Are you sure you want to delete @(ModelName)?</MudText>
+        @if (deleting)
+        {
+            <MudProgressLinear Indeterminate="true" />
+        }
+        @if (errorMessage is not null)
+        {
+            <MudAlert Severity="Severity.Error">There was an error trying to delete that model:<br />@errorMessage</MudAlert>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton Color="Color.Secondary" OnClick="DeleteAsync" Disabled="deleting" 
+                   StartIcon="@Icons.Material.Filled.Delete" IconColor="Color.Secondary">Delete</MudButton>
+        <MudButton Color="Color.Primary" OnClick="Close" Disabled="deleting">Cancel</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; }
+    
+    [Parameter]
+    public required OllamaApiClient Ollama { get; set; }
+    
+    [Parameter]
+    public required string ModelName { get; set; }
+    
+    private bool deleting = false;
+
+    private string? errorMessage = null;
+    
+    private void Close() => MudDialog.Close(DialogResult.Cancel());
+
+    private async Task DeleteAsync()
+    {
+        try
+        {
+            deleting = true;
+            await Ollama.DeleteModelAsync(ModelName);
+        }
+        catch (Exception e)
+        {
+            errorMessage = e.Message;
+        }
+        finally
+        {
+            deleting = false;
+            MudDialog.Close(DialogResult.Ok(true));
+        }
+    }
+}

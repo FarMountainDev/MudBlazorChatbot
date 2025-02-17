@@ -1,0 +1,73 @@
+﻿<MudDialog>
+    <TitleContent>
+        Download Models
+    </TitleContent>
+    <DialogContent>
+        @if (!downloading)
+        {
+            <MudText>Select a model to download</MudText>
+            <MudTextField @ref="newModelField" T="string" Label="Outlined" Variant="Variant.Outlined"></MudTextField>
+            <MudButton OnClick="() => DownloadModelAsync(newModelField.Value)" Color="Color.Primary">Download</MudButton>
+        }
+        else
+        {
+            <MudText>Downloading model... @statusMessage @($"( {downloadPercent:N2} % )")</MudText>
+            <MudProgressLinear Determinate="true" Value="@downloadPercent" />
+        }
+        @if (downloadError)
+        {
+            <MudAlert Severity="Severity.Error">There was an error trying to download that model:<br/>@errorMessage</MudAlert>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton Color="Color.Primary" OnClick="Close" Disabled="downloading">Ok</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; }
+    
+    [Parameter]
+    public required OllamaApiClient Ollama { get; set; }
+    
+    private MudTextField<string> newModelField;
+
+    private string statusMessage = string.Empty;
+    private double downloadPercent = 0;
+    private bool downloading = false;
+    
+    private bool downloadError = false;
+    private string errorMessage = string.Empty;
+
+    private void Close() => MudDialog.Close(DialogResult.Ok(true));
+
+    protected override async Task OnInitializedAsync()
+    {
+        var localModels = await Ollama.ListLocalModelsAsync();
+    }
+    
+    private async Task DownloadModelAsync(string modelName)
+    {
+        try
+        {
+            downloading = true;
+            await foreach (var status in Ollama.PullModelAsync(modelName))
+            {
+                statusMessage = status!.Status;
+                downloadPercent = status.Percent;
+                StateHasChanged();
+            }
+        }
+        catch (Exception e)
+        {
+            downloadError = true;
+            errorMessage = e.Message;
+        }
+        finally
+        {
+            downloading = false;
+        }
+    }
+
+}

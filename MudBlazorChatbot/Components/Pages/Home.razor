@@ -2,6 +2,7 @@
 @rendermode InteractiveServer
 @attribute [StreamRendering]
 @inject IConfiguration Config
+@inject IDialogService DialogService
 
 <PageTitle>MudBlazor Chatbot</PageTitle>
 
@@ -11,13 +12,17 @@
             @if (ollama is not null && !loadingOllama)
             {
                 <MudMenu Label="@(models.Any() && !string.IsNullOrWhiteSpace(ollama.SelectedModel) ? ollama.SelectedModel : "Choose a model")" Variant="Variant.Filled" Dense="true" FullWidth="true"
-                         EndIcon="@Icons.Material.Filled.KeyboardArrowDown" IconColor="Color.Secondary">
-                    <MudMenuItem Icon="@Icons.Material.Filled.Download" IconColor="Color.Tertiary">
+                         EndIcon="@Icons.Material.Filled.KeyboardArrowDown" IconColor="Color.Secondary" @ref="modelMenu">
+                    <MudMenuItem @onclick="OpenDownloadModelsAsync" Icon="@Icons.Material.Filled.Download" IconColor="Color.Tertiary">
                         Download Additional Models
                     </MudMenuItem>
                     @foreach (var model in models)
                     {
-                        <MudMenuItem @onclick="() => chatbot.SetSelectedModel(model.Name)">@model.Name</MudMenuItem>
+                        <MudMenuItem @onclick="() => chatbot!.SetSelectedModel(model.Name)">
+                            @(model.Name)
+                            <MudIconButton Icon="@Icons.Material.Outlined.Delete" Size="Size.Small"
+                                           Color="Color.Secondary" Class="float-end" @onclick="() => DeleteModelAsync(model.Name)"/>
+                        </MudMenuItem>
                     }
                 </MudMenu>
                 <MudSpacer />
@@ -55,11 +60,11 @@ else if (!loadingOllama)
     </MudContainer>
 }
 
-
 @code {
     private OllamaApiClient? ollama;
     private IEnumerable<Model> models = new List<Model>();
     private Chatbot? chatbot;
+    private MudMenu? modelMenu;
 
     private bool loadingOllama;
     
@@ -69,7 +74,7 @@ else if (!loadingOllama)
         {
             loadingOllama = true;
             ollama = new OllamaApiClient(Config["OllamaUri"]!);
-            models = await ollama.ListLocalModelsAsync();
+            await LoadModelsAsync();
         }
         catch
         {
@@ -84,5 +89,50 @@ else if (!loadingOllama)
                 chatbot.SetSelectedModel(models.First().Name);
             }
         }
+    }
+
+    private async Task LoadModelsAsync()
+    {
+        models = await ollama!.ListLocalModelsAsync();
+    }
+
+    private async Task OpenDownloadModelsAsync()
+    {
+        var parameters = new DialogParameters<DownloadModels> { { x => x.Ollama, ollama } };
+        var options = new DialogOptions { CloseOnEscapeKey = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<DownloadModels>("Download Models", parameters, options);
+        await dialog.Result;
+        
+        loadingOllama = true;
+        StateHasChanged();
+        await LoadModelsAsync();
+        if (models.Any() && string.IsNullOrWhiteSpace(ollama!.SelectedModel))
+        {
+            chatbot?.SetSelectedModel(models.First().Name);
+        }
+        loadingOllama = false;
+    }
+
+    private async Task DeleteModelAsync(string modelName)
+    {
+        await modelMenu!.CloseMenuAsync();
+        
+        var parameters = new DialogParameters<DeleteModel>
+        {
+            { x => x.Ollama, ollama },
+            { x => x.ModelName, modelName }
+        };
+        var options = new DialogOptions { CloseOnEscapeKey = true, MaxWidth = MaxWidth.Small, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<DeleteModel>("Delete Model", parameters, options);
+        await dialog.Result;
+        
+        loadingOllama = true;
+        StateHasChanged();
+        await LoadModelsAsync();
+        if (models.Any() && ollama!.SelectedModel.Equals(modelName, StringComparison.OrdinalIgnoreCase))
+        {
+            chatbot?.SetSelectedModel(models.First().Name);
+        }
+        loadingOllama = false;
     }
 }
