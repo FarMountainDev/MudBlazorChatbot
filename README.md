@@ -2,11 +2,11 @@
 A simple Ollama chatbot client built with Blazor / MudBlazor
 
 ## How To Use
-Clone the repo to a machine that has Ollama installed. Ensure that Ollama is running on the correct port. Build and run
-the chatbot.
+Clone the repo to a machine that has Ollama installed. Ensure that Ollama is running. The "OllamaUri" app setting should
+be configured to the correct default Ollama port, but change it if necessary. Build and run the chatbot.
 
 ### Downloading and Selecting a Model
-[image and instructions here]
+(TODO image and instructions here)
 
 ### Using the Chatbot
 Once a model has been downloaded and selected, the chatbot is ready to go. Type a message in the prompt box and click

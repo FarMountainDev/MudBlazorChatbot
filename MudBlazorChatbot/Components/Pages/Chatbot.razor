@@ -2,6 +2,7 @@
 @rendermode InteractiveServer
 @attribute [StreamRendering]
 @inject IJSRuntime Js
+@inject IConfiguration Config
 
 <PageTitle>MudBlazor Chatbot</PageTitle>
 
@@ -32,7 +33,7 @@
         </MudItem>
         <MudItem xs="4" Class="d-flex align-center justify-center mud-width-full">
             <MudSpacer />
-            <MudIconButton Href="https://github.com/" Icon="@Icons.Custom.Brands.GitHub" Color="Color.Inherit" Edge="Edge.End"/>
+            <MudIconButton Href="https://github.com/Garrett-Hub/MudBlazorChatbot" Icon="@Icons.Custom.Brands.GitHub" Color="Color.Inherit" Edge="Edge.End"/>
         </MudItem>
     </MudGrid>
 </MudAppBar>
@@ -137,7 +138,6 @@
 </script>
 
 @code {
-    private readonly Uri uri = new Uri("http://localhost:11434");
     private OllamaApiClient? ollama;
     private Chat? chat;
     private IEnumerable<Model> models = new List<Model>();
@@ -155,7 +155,7 @@
     {
         try
         {
-            ollama = new OllamaApiClient(uri);
+            ollama = new OllamaApiClient(Config["OllamaUri"]!);
             models = await ollama.ListLocalModelsAsync();
             SetSelectedModel("deepseek-r1:1.5b");
         }
