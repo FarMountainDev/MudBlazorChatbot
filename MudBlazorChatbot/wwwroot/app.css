@@ -12,30 +12,13 @@ html, body {
     --chat-bubble-bot: rgb(31,32,48);
 }
 
-/* Mud-Typography default heading font sizes are way too big */
-.h1 {
-    font-size: 1.8rem;
-}
-
-.h2 {
-    font-size: 1.6rem;
-}
-
-.h3 {
-    font-size: 1.4rem;
-}
-
-.h4 {
-    font-size: 1.2rem;
-}
-
 p.mud-typography {
-    margin: 0 0 !important;
+    margin: 0 !important;
     padding: 0 !important;
 }
 
 /* Chatbot styles */
-.full-height-container {
+.full-height-chat {
     display: flex;
     flex-direction: column;
     justify-content: flex-end;

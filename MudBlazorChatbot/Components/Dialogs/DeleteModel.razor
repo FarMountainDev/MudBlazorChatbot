@@ -1,22 +1,27 @@
 ﻿<MudDialog>
     <TitleContent>
-        Delete @(ModelName)?
+        <MudText Typo="Typo.h5">Delete @(ModelName)?</MudText>
+        <MudDivider />
     </TitleContent>
     <DialogContent>
-        <MudText>Are you sure you want to delete @(ModelName)?</MudText>
-        @if (deleting)
+        @if (!deleting)
         {
-            <MudProgressLinear Indeterminate="true" />
+            <MudText>Are you sure you want to delete @(ModelName)?</MudText>
         }
-        @if (errorMessage is not null)
+        else
         {
-            <MudAlert Severity="Severity.Error">There was an error trying to delete that model:<br />@errorMessage</MudAlert>
+            <MudText>Deleting @(ModelName)...</MudText>
+            <MudProgressLinear Indeterminate="true"/>
+        }
+        @if (deleteError)
+        {
+            <MudAlert Severity="Severity.Error">There was an error trying to delete that model:<br/>@errorMessage</MudAlert>
         }
     </DialogContent>
     <DialogActions>
-        <MudButton Color="Color.Secondary" OnClick="DeleteAsync" Disabled="deleting" 
+        <MudButton Color="Color.Secondary" OnClick="DeleteAsync" Disabled="deleting" Variant="Variant.Outlined"
                    StartIcon="@Icons.Material.Filled.Delete" IconColor="Color.Secondary">Delete</MudButton>
-        <MudButton Color="Color.Primary" OnClick="Close" Disabled="deleting">Cancel</MudButton>
+        <MudButton Color="Color.Primary" OnClick="Close" Disabled="deleting" Variant="Variant.Outlined">Cancel</MudButton>
     </DialogActions>
 </MudDialog>
 
@@ -31,8 +36,9 @@
     public required string ModelName { get; set; }
     
     private bool deleting = false;
-
-    private string? errorMessage = null;
+    private bool deleteError = false;
+    
+    private string errorMessage = string.Empty;
     
     private void Close() => MudDialog.Close(DialogResult.Cancel());
 
@@ -41,16 +47,18 @@
         try
         {
             deleting = true;
+            deleteError = false;
+            errorMessage = string.Empty;
             await Ollama.DeleteModelAsync(ModelName);
-        }
-        catch (Exception e)
-        {
-            errorMessage = e.Message;
-        }
-        finally
-        {
+            
             deleting = false;
             MudDialog.Close(DialogResult.Ok(true));
+        }
+        catch (Exception ex)
+        {
+            deleting = false;
+            deleteError = true;
+            errorMessage = ex.Message;
         }
     }
 }

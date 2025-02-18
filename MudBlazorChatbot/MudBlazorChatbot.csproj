@@ -16,4 +16,10 @@
       <_ContentIncludedByDefault Remove="Components\Dialogs\ModelDownloader.razor" />
     </ItemGroup>
 
+    <ItemGroup>
+      <Content Update="wwwroot\data\popular-models.json">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </Content>
+    </ItemGroup>
+
 </Project>

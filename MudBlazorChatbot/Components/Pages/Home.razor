@@ -11,17 +11,20 @@
         <MudItem xs="4" Class="d-flex align-center justify-center mud-width-full">
             @if (ollama is not null && !loadingOllama)
             {
-                <MudMenu Label="@(models.Any() && !string.IsNullOrWhiteSpace(ollama.SelectedModel) ? ollama.SelectedModel : "Choose a model")" Variant="Variant.Filled" Dense="true" FullWidth="true"
-                         EndIcon="@Icons.Material.Filled.KeyboardArrowDown" IconColor="Color.Secondary" @ref="modelMenu">
-                    <MudMenuItem @onclick="OpenDownloadModelsAsync" Icon="@Icons.Material.Filled.Download" IconColor="Color.Tertiary">
+                <MudMenu Label="@(models.Any() && !string.IsNullOrWhiteSpace(ollama.SelectedModel) ? ollama.SelectedModel : "Choose a model")"
+                         @ref="modelMenu" Variant="Variant.Filled" Dense="true" FullWidth="true"
+                         EndIcon="@Icons.Material.Filled.KeyboardArrowDown" IconColor="Color.Secondary">
+                    <MudMenuItem OnClick="DownloadModelsDialogAsync" Icon="@Icons.Material.Filled.Download" IconColor="Color.Tertiary">
                         Download Additional Models
                     </MudMenuItem>
                     @foreach (var model in models)
                     {
-                        <MudMenuItem @onclick="() => chatbot!.SetSelectedModel(model.Name)">
-                            @(model.Name)
-                            <MudIconButton Icon="@Icons.Material.Outlined.Delete" Size="Size.Small"
-                                           Color="Color.Secondary" Class="float-end" @onclick="() => DeleteModelAsync(model.Name)"/>
+                        <MudMenuItem OnClick="() => chatbot!.SetSelectedModel(model.Name)">
+                            <div class="d-flex align-center justify-space-between mud-width-full">
+                                @(model.Name)
+                                <MudIconButton Icon="@Icons.Material.Outlined.Delete" Class="float-end" Size="Size.Small"
+                                               Color="Color.Secondary" OnClick="() => ConfirmDeleteModelDialogAsync(model.Name)"/>
+                            </div>
                         </MudMenuItem>
                     }
                 </MudMenu>
@@ -94,12 +97,13 @@ else if (!loadingOllama)
     private async Task LoadModelsAsync()
     {
         models = await ollama!.ListLocalModelsAsync();
+        StateHasChanged();
     }
 
-    private async Task OpenDownloadModelsAsync()
+    private async Task DownloadModelsDialogAsync()
     {
         var parameters = new DialogParameters<DownloadModels> { { x => x.Ollama, ollama } };
-        var options = new DialogOptions { CloseOnEscapeKey = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
+        var options = new DialogOptions { CloseOnEscapeKey = false, BackdropClick = false, MaxWidth = MaxWidth.Medium, FullWidth = true };
         var dialog = await DialogService.ShowAsync<DownloadModels>("Download Models", parameters, options);
         await dialog.Result;
         
@@ -113,26 +117,29 @@ else if (!loadingOllama)
         loadingOllama = false;
     }
 
-    private async Task DeleteModelAsync(string modelName)
+    private async Task ConfirmDeleteModelDialogAsync(string deleteModelName)
     {
         await modelMenu!.CloseMenuAsync();
         
         var parameters = new DialogParameters<DeleteModel>
         {
             { x => x.Ollama, ollama },
-            { x => x.ModelName, modelName }
+            { x => x.ModelName, deleteModelName }
         };
-        var options = new DialogOptions { CloseOnEscapeKey = true, MaxWidth = MaxWidth.Small, FullWidth = true };
+        var options = new DialogOptions { CloseOnEscapeKey = false, BackdropClick = false, MaxWidth = MaxWidth.Small, FullWidth = true };
         var dialog = await DialogService.ShowAsync<DeleteModel>("Delete Model", parameters, options);
-        await dialog.Result;
-        
-        loadingOllama = true;
-        StateHasChanged();
-        await LoadModelsAsync();
-        if (models.Any() && ollama!.SelectedModel.Equals(modelName, StringComparison.OrdinalIgnoreCase))
+        var result = await dialog.Result;
+
+        if (result != DialogResult.Cancel())
         {
-            chatbot?.SetSelectedModel(models.First().Name);
+            loadingOllama = true;
+            StateHasChanged();
+            await LoadModelsAsync();
+            if (models.Any() && ollama!.SelectedModel.Equals(deleteModelName, StringComparison.OrdinalIgnoreCase))
+            {
+                chatbot?.SetSelectedModel(models.First().Name);
+            }
+            loadingOllama = false;
         }
-        loadingOllama = false;
     }
 }

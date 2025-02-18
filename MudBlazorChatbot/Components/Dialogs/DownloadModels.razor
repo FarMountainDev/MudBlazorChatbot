@@ -1,26 +1,53 @@
-﻿<MudDialog>
+﻿@using System.Text.Json
+@inject IWebHostEnvironment Environment
+
+<MudDialog>
     <TitleContent>
-        Download Models
+        <MudText Typo="Typo.h5">Download Models</MudText>
+        <MudDivider />
     </TitleContent>
     <DialogContent>
         @if (!downloading)
         {
             <MudText>Select a model to download</MudText>
-            <MudTextField @ref="newModelField" T="string" Label="Outlined" Variant="Variant.Outlined"></MudTextField>
-            <MudButton OnClick="() => DownloadModelAsync(newModelField.Value)" Color="Color.Primary">Download</MudButton>
+            <MudMenu Label="Choose From Popular Models" Variant="Variant.Filled" Dense Class="my-1"
+                     EndIcon="@Icons.Material.Filled.KeyboardArrowDown" IconColor="Color.Primary">
+                @foreach (var category in modelData)
+                {
+                    <MudMenuItem>
+                        <MudMenu Label="@category.Key" Class="w-100" Dense>
+                            @foreach (var model in category.Value)
+                            {
+                                <MudMenuItem OnClick="() => fieldValue = model.Key" Disabled="downloadedModels.Contains(model.Key, StringComparer.OrdinalIgnoreCase)"
+                                             Icon="@(downloadedModels.Contains(model.Key, StringComparer.OrdinalIgnoreCase) ? Icons.Material.Filled.Check : Icons.Material.Filled.Download)">
+                                    @(model.Key) - @(model.Value)
+                                </MudMenuItem>
+                            }
+                        </MudMenu>
+                    </MudMenuItem>
+                }
+            </MudMenu>
+            <MudTextField @bind-value="fieldValue" Label="Model Name" Variant="Variant.Outlined"></MudTextField>
+            <MudButton OnClick="() => DownloadModelAsync(fieldValue)" Color="Color.Tertiary" Variant="Variant.Outlined" 
+                       StartIcon="@Icons.Material.Filled.Download" IconColor="Color.Tertiary" FullWidth="true">Download</MudButton>
         }
         else
         {
-            <MudText>Downloading model... @statusMessage @($"( {downloadPercent:N2} % )")</MudText>
-            <MudProgressLinear Determinate="true" Value="@downloadPercent" />
+            <MudText>Downloading @downloadModelName... @(statusMessage)... 
+                @($"{ConversionHelper.ConvertFileLengthToString(completedLength)} / {ConversionHelper.ConvertFileLengthToString(totalLength)} ( {downloadPercent:N2} % )")</MudText>
+            <MudProgressLinear Value="@downloadPercent" Color="Color.Primary" />
         }
         @if (downloadError)
         {
             <MudAlert Severity="Severity.Error">There was an error trying to download that model:<br/>@errorMessage</MudAlert>
         }
+        else if (!string.IsNullOrWhiteSpace(errorMessage))
+        {
+            <MudAlert Severity="Severity.Error">An unexpected error occurred:<br/>@errorMessage</MudAlert>
+        }
     </DialogContent>
     <DialogActions>
-        <MudButton Color="Color.Primary" OnClick="Close" Disabled="downloading">Ok</MudButton>
+        <MudButton Color="Color.Primary" OnClick="Close" Variant="Variant.Filled" Disabled="downloading">Done</MudButton>
     </DialogActions>
 </MudDialog>
 
@@ -30,44 +57,66 @@
     
     [Parameter]
     public required OllamaApiClient Ollama { get; set; }
-    
-    private MudTextField<string> newModelField;
 
-    private string statusMessage = string.Empty;
-    private double downloadPercent = 0;
-    private bool downloading = false;
+    private List<string> downloadedModels = [];
+    private Dictionary<string, Dictionary<string, string>> modelData = new();
     
+    private bool downloading = false;
     private bool downloadError = false;
+    
+    private string fieldValue = string.Empty;
+    private string downloadModelName = string.Empty;
+    private string statusMessage = string.Empty;
     private string errorMessage = string.Empty;
+    
+    private double downloadPercent = 0;
+    private long totalLength = 0;
+    private long completedLength = 0;
 
     private void Close() => MudDialog.Close(DialogResult.Ok(true));
 
     protected override async Task OnInitializedAsync()
     {
-        var localModels = await Ollama.ListLocalModelsAsync();
+        try
+        {
+            var json = await File.ReadAllTextAsync(Path.Combine(Environment.WebRootPath, "data/popular-models.json"));
+            modelData = JsonSerializer.Deserialize<Dictionary<string, Dictionary<string, string>>>(json)!;
+            downloadedModels = (await Ollama.ListLocalModelsAsync()).Select(m => m.Name).ToList();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
     }
-    
+
     private async Task DownloadModelAsync(string modelName)
     {
         try
         {
             downloading = true;
+            downloadError = false;
+            errorMessage = string.Empty;
+            downloadModelName = modelName;
+            StateHasChanged();
+            
             await foreach (var status in Ollama.PullModelAsync(modelName))
             {
                 statusMessage = status!.Status;
                 downloadPercent = status.Percent;
+                totalLength = status.Total;
+                completedLength = status.Completed;
                 StateHasChanged();
             }
         }
-        catch (Exception e)
+        catch (Exception ex)
         {
             downloadError = true;
-            errorMessage = e.Message;
+            errorMessage = ex.Message;
         }
         finally
         {
+            fieldValue = string.Empty;
             downloading = false;
         }
     }
-
 }
