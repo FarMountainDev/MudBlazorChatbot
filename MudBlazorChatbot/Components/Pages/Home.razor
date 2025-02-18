@@ -1,5 +1,4 @@
 ﻿@page "/"
-@rendermode InteractiveServer
 @attribute [StreamRendering]
 @inject IConfiguration Config
 @inject IDialogService DialogService
@@ -96,7 +95,7 @@ else if (!loadingOllama)
 
     private async Task LoadModelsAsync()
     {
-        models = await ollama!.ListLocalModelsAsync();
+        models = (await ollama!.ListLocalModelsAsync()).OrderBy(m => m.Name);
         StateHasChanged();
     }
 
@@ -121,13 +120,13 @@ else if (!loadingOllama)
     {
         await modelMenu!.CloseMenuAsync();
         
-        var parameters = new DialogParameters<DeleteModel>
+        var parameters = new DialogParameters<ConfirmDeleteModel>
         {
             { x => x.Ollama, ollama },
             { x => x.ModelName, deleteModelName }
         };
         var options = new DialogOptions { CloseOnEscapeKey = false, BackdropClick = false, MaxWidth = MaxWidth.Small, FullWidth = true };
-        var dialog = await DialogService.ShowAsync<DeleteModel>("Delete Model", parameters, options);
+        var dialog = await DialogService.ShowAsync<ConfirmDeleteModel>("Delete Model", parameters, options);
         var result = await dialog.Result;
 
         if (result != DialogResult.Cancel())

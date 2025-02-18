@@ -1,5 +1,6 @@
 ﻿@using System.Text.Json
 @inject IWebHostEnvironment Environment
+@inject ISnackbar Snackbar
 
 <MudDialog>
     <TitleContent>
@@ -9,7 +10,7 @@
     <DialogContent>
         @if (!downloading)
         {
-            <MudText>Select a model to download</MudText>
+            <MudText>Select a model to download. Search for models at <MudLink href="https://ollama.com/search">https://ollama.com/search</MudLink></MudText>
             <MudMenu Label="Choose From Popular Models" Variant="Variant.Filled" Dense Class="my-1"
                      EndIcon="@Icons.Material.Filled.KeyboardArrowDown" IconColor="Color.Primary">
                 @foreach (var category in modelData)
@@ -18,8 +19,8 @@
                         <MudMenu Label="@category.Key" Class="w-100" Dense>
                             @foreach (var model in category.Value)
                             {
-                                <MudMenuItem OnClick="() => fieldValue = model.Key" Disabled="downloadedModels.Contains(model.Key, StringComparer.OrdinalIgnoreCase)"
-                                             Icon="@(downloadedModels.Contains(model.Key, StringComparer.OrdinalIgnoreCase) ? Icons.Material.Filled.Check : Icons.Material.Filled.Download)">
+                                <MudMenuItem OnClick="() => fieldValue = model.Key" Disabled="localModels.Contains(model.Key, StringComparer.OrdinalIgnoreCase)"
+                                             Icon="@(localModels.Contains(model.Key, StringComparer.OrdinalIgnoreCase) ? Icons.Material.Filled.Check : Icons.Material.Filled.Download)">
                                     @(model.Key) - @(model.Value)
                                 </MudMenuItem>
                             }
@@ -52,13 +53,10 @@
 </MudDialog>
 
 @code {
-    [CascadingParameter]
-    private IMudDialogInstance MudDialog { get; set; }
-    
-    [Parameter]
-    public required OllamaApiClient Ollama { get; set; }
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; }
+    [Parameter] public required OllamaApiClient Ollama { get; set; }
 
-    private List<string> downloadedModels = [];
+    private List<string> localModels = [];
     private Dictionary<string, Dictionary<string, string>> modelData = new();
     
     private bool downloading = false;
@@ -80,8 +78,11 @@
         try
         {
             var json = await File.ReadAllTextAsync(Path.Combine(Environment.WebRootPath, "data/popular-models.json"));
-            modelData = JsonSerializer.Deserialize<Dictionary<string, Dictionary<string, string>>>(json)!;
-            downloadedModels = (await Ollama.ListLocalModelsAsync()).Select(m => m.Name).ToList();
+            modelData = JsonSerializer.Deserialize<Dictionary<string, Dictionary<string, string>>>(json)!
+                .OrderBy(k => k.Key)
+                .ToDictionary(k => k.Key, v => v.Value);
+            localModels = (await Ollama.ListLocalModelsAsync()).Select(m => m.Name).ToList();
+            Snackbar.Configuration.PositionClass = Defaults.Classes.Position.BottomStart;
         }
         catch (Exception ex)
         {
@@ -107,6 +108,11 @@
                 completedLength = status.Completed;
                 StateHasChanged();
             }
+            Snackbar.Add($"Model {modelName} downloaded successfully!", Severity.Success, config =>
+            {
+                config.SnackbarVariant = Variant.Outlined;
+                config.Icon = Icons.Material.Filled.Download;
+            });
         }
         catch (Exception ex)
         {
@@ -115,6 +121,7 @@
         }
         finally
         {
+            localModels = (await Ollama.ListLocalModelsAsync()).Select(m => m.Name).ToList();
             fieldValue = string.Empty;
             downloading = false;
         }

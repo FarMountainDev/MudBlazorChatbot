@@ -1,4 +1,6 @@
-﻿<MudDialog>
+﻿@inject ISnackbar Snackbar
+
+<MudDialog>
     <TitleContent>
         <MudText Typo="Typo.h5">Delete @(ModelName)?</MudText>
         <MudDivider />
@@ -11,7 +13,7 @@
         else
         {
             <MudText>Deleting @(ModelName)...</MudText>
-            <MudProgressLinear Indeterminate="true"/>
+            <MudProgressLinear Indeterminate="true" Color="Color.Secondary"/>
         }
         @if (deleteError)
         {
@@ -26,14 +28,9 @@
 </MudDialog>
 
 @code {
-    [CascadingParameter]
-    private IMudDialogInstance MudDialog { get; set; }
-    
-    [Parameter]
-    public required OllamaApiClient Ollama { get; set; }
-    
-    [Parameter]
-    public required string ModelName { get; set; }
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; }
+    [Parameter] public required OllamaApiClient Ollama { get; set; }
+    [Parameter] public required string ModelName { get; set; }
     
     private bool deleting = false;
     private bool deleteError = false;
@@ -41,6 +38,11 @@
     private string errorMessage = string.Empty;
     
     private void Close() => MudDialog.Close(DialogResult.Cancel());
+    
+    protected override void OnInitialized()
+    {
+        Snackbar.Configuration.PositionClass = Defaults.Classes.Position.BottomStart;
+    }
 
     private async Task DeleteAsync()
     {
@@ -52,6 +54,11 @@
             await Ollama.DeleteModelAsync(ModelName);
             
             deleting = false;
+            Snackbar.Add($"Model {ModelName} deleted successfully.", Severity.Success, config =>
+            {
+                config.SnackbarVariant = Variant.Outlined;
+                config.Icon = Icons.Material.Filled.Delete;
+            });
             MudDialog.Close(DialogResult.Ok(true));
         }
         catch (Exception ex)

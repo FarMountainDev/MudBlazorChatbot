@@ -1,5 +1,4 @@
-﻿@rendermode InteractiveServer
-@inject IJSRuntime Js
+﻿@inject IJSRuntime Js
 
 <!-- Chat Container -->
 <MudContainer MaxWidth="MaxWidth.Medium" Class="full-height-chat">
@@ -9,7 +8,7 @@
     }
     @foreach (var chatBubble in chatBubbles)
     {
-        <MudPaper Class="@GetChatBubbleClass(chatBubble.IsUser)">
+        <MudPaper Class="@chatBubble.GetClass()">
             @if (!string.IsNullOrWhiteSpace(chatBubble.PromptText))
             {
                 <MudText>@(chatBubble.PromptText)</MudText>
@@ -160,11 +159,5 @@
     private static string EncodeHtmlTags(string text)
     {
         return text.Replace("<", "&lt;").Replace(">", "&gt;");
-    }
-    
-    private static string GetChatBubbleClass(bool isUser)
-    {
-        return isUser ? "chat-bubble chat-bubble-user" 
-            : "chat-bubble chat-bubble-bot";
     }
 }
