@@ -76,12 +76,14 @@
     
     private bool thinking = false;
 
-    public void SetSelectedModel(string model)
+    public async Task SetSelectedModel(string model)
     {
         if (Ollama is null) return;
         Ollama.SelectedModel = model;
         chat = new Chat(Ollama);
         chatBubbles = new List<ChatBubble>();
+        
+        await Js.InvokeVoidAsync("localStorage.setItem", "selectedModel", model);
     }
     
     private async Task SubmitPrompt()
@@ -147,17 +149,12 @@
             markdownResponse = streamingResponse.Remove(startIndex);
         }
         
-        thinkResponse = EncodeHtmlTags(thinkResponse);
+        thinkResponse = System.Net.WebUtility.HtmlEncode(thinkResponse);
         thinkResponse = thinkResponse.Replace("\n", "<br/>");
     }
     
     private async Task ScrollToBottom()
     {
         await Js.InvokeVoidAsync("scrollToBottom");
-    }
-
-    private static string EncodeHtmlTags(string text)
-    {
-        return text.Replace("<", "&lt;").Replace(">", "&gt;");
     }
 }

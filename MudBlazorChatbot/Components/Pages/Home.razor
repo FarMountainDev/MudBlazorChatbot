@@ -2,13 +2,14 @@
 @attribute [StreamRendering]
 @inject IConfiguration Config
 @inject IDialogService DialogService
+@inject IJSRuntime Js
 
 <PageTitle>MudBlazor Chatbot</PageTitle>
 
 <MudAppBar Color="Color.Default" Fixed="true">
     <MudGrid Justify="Justify.Center">
         <MudItem xs="4" Class="d-flex align-center justify-center mud-width-full">
-            @if (ollama is not null && !loadingOllama)
+            @if (ollama is not null && chatbot is not null && !loadingOllama)
             {
                 <MudMenu Label="@(models.Any() && !string.IsNullOrWhiteSpace(ollama.SelectedModel) ? ollama.SelectedModel : "Choose a model")"
                          @ref="modelMenu" Variant="Variant.Filled" Dense="true" FullWidth="true"
@@ -18,7 +19,7 @@
                     </MudMenuItem>
                     @foreach (var model in models)
                     {
-                        <MudMenuItem OnClick="() => chatbot!.SetSelectedModel(model.Name)">
+                        <MudMenuItem OnClick="() => chatbot.SetSelectedModel(model.Name)">
                             <div class="d-flex align-center justify-space-between mud-width-full">
                                 @(model.Name)
                                 <MudIconButton Icon="@Icons.Material.Outlined.Delete" Class="float-end" Size="Size.Small"
@@ -57,7 +58,7 @@ else if (!loadingOllama)
     }
     else if (!models.Any())
     {
-        <MudAlert Severity="Severity.Warning">Connected to Ollama Api, but no models were found. Please download a model to begin chatting.</MudAlert>
+        <MudAlert Severity="Severity.Warning">Connected to Ollama Api, but no local models were found. Please <MudLink OnClick="DownloadModelsDialogAsync">download a model</MudLink> to begin chatting.</MudAlert>
     }
     </MudContainer>
 }
@@ -88,7 +89,15 @@ else if (!loadingOllama)
             StateHasChanged();
             if (models.Any() && chatbot is not null)
             {
-                chatbot.SetSelectedModel(models.First().Name);
+                var savedModel = await Js.InvokeAsync<string>("localStorage.getItem", "selectedModel");
+                if (!string.IsNullOrWhiteSpace(savedModel) && models.Any(m => m.Name.Equals(savedModel, StringComparison.OrdinalIgnoreCase)))
+                {
+                    await chatbot.SetSelectedModel(savedModel);
+                }
+                else
+                {
+                    await chatbot.SetSelectedModel(models.First().Name);
+                }
             }
         }
     }
@@ -109,9 +118,9 @@ else if (!loadingOllama)
         loadingOllama = true;
         StateHasChanged();
         await LoadModelsAsync();
-        if (models.Any() && string.IsNullOrWhiteSpace(ollama!.SelectedModel))
+        if (chatbot is not null && models.Any() && string.IsNullOrWhiteSpace(ollama!.SelectedModel))
         {
-            chatbot?.SetSelectedModel(models.First().Name);
+            await chatbot.SetSelectedModel(models.First().Name);
         }
         loadingOllama = false;
     }
@@ -134,9 +143,9 @@ else if (!loadingOllama)
             loadingOllama = true;
             StateHasChanged();
             await LoadModelsAsync();
-            if (models.Any() && ollama!.SelectedModel.Equals(deleteModelName, StringComparison.OrdinalIgnoreCase))
+            if (chatbot is not null && models.Any() && ollama!.SelectedModel.Equals(deleteModelName, StringComparison.OrdinalIgnoreCase))
             {
-                chatbot?.SetSelectedModel(models.First().Name);
+                await chatbot.SetSelectedModel(models.First().Name);
             }
             loadingOllama = false;
         }
