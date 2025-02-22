@@ -13,7 +13,7 @@
         else
         {
             <MudText>Deleting @(ModelName)...</MudText>
-            <MudProgressLinear Indeterminate="true" Color="Color.Secondary"/>
+            <MudProgressLinear Indeterminate="true" Color="Color.Error"/>
         }
         @if (deleteError)
         {
@@ -21,8 +21,8 @@
         }
     </DialogContent>
     <DialogActions>
-        <MudButton Color="Color.Secondary" OnClick="DeleteAsync" Disabled="deleting" Variant="Variant.Outlined"
-                   StartIcon="@Icons.Material.Filled.Delete" IconColor="Color.Secondary">Delete</MudButton>
+        <MudButton Color="Color.Error" OnClick="DeleteAsync" Disabled="deleting" Variant="Variant.Outlined"
+                   StartIcon="@Icons.Material.Filled.Delete" IconColor="Color.Error">Delete</MudButton>
         <MudButton Color="Color.Primary" OnClick="Close" Disabled="deleting" Variant="Variant.Outlined">Cancel</MudButton>
     </DialogActions>
 </MudDialog>

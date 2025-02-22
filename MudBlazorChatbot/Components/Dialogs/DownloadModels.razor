@@ -10,7 +10,7 @@
     <DialogContent>
         @if (!downloading)
         {
-            <MudText>Select a model to download. Search for models at <MudLink href="https://ollama.com/search">https://ollama.com/search</MudLink></MudText>
+            <MudInputLabel>Search for models at <MudLink href="https://ollama.com/search">https://ollama.com/search</MudLink></MudInputLabel>
             <MudMenu Label="Choose From Popular Models" Variant="Variant.Filled" Dense Class="my-1"
                      EndIcon="@Icons.Material.Filled.KeyboardArrowDown" IconColor="Color.Primary">
                 @foreach (var category in modelData)
@@ -28,14 +28,14 @@
                     </MudMenuItem>
                 }
             </MudMenu>
-            <MudTextField @bind-value="fieldValue" Label="Model Name" Variant="Variant.Outlined"></MudTextField>
-            <MudButton OnClick="() => DownloadModelAsync(fieldValue)" Color="Color.Tertiary" Variant="Variant.Outlined" 
-                       StartIcon="@Icons.Material.Filled.Download" IconColor="Color.Tertiary" FullWidth="true">Download</MudButton>
+            <MudTextField @bind-value="fieldValue" Label="Enter a model name" Variant="Variant.Outlined"></MudTextField>
+            <MudButton OnClick="() => DownloadModelAsync(fieldValue)" Color="Color.Primary" Variant="Variant.Outlined" 
+                       StartIcon="@Icons.Material.Filled.Download" IconColor="Color.Primary" FullWidth="true">Download</MudButton>
         }
         else
         {
-            <MudText>Downloading @downloadModelName... @(statusMessage)... 
-                @($"{ConversionHelper.ConvertFileLengthToString(completedLength)} / {ConversionHelper.ConvertFileLengthToString(totalLength)} ( {downloadPercent:N2} % )")</MudText>
+            <MudText>Downloading @downloadModelName... <br/>
+                @(statusMessage): @($"{ConversionHelper.ConvertFileLengthToString(completedLength)} / {ConversionHelper.ConvertFileLengthToString(totalLength)} ( {downloadPercent:N2} % )")</MudText>
             <MudProgressLinear Value="@downloadPercent" Color="Color.Primary" />
         }
         @if (downloadError)

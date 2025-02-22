@@ -23,7 +23,7 @@
                             <div class="d-flex align-center justify-space-between mud-width-full">
                                 @(model.Name)
                                 <MudIconButton Icon="@Icons.Material.Outlined.Delete" Class="float-end" Size="Size.Small"
-                                               Color="Color.Secondary" OnClick="() => ConfirmDeleteModelDialogAsync(model.Name)"/>
+                                               Color="Color.Error" OnClick="() => ConfirmDeleteModelDialogAsync(model.Name)"/>
                             </div>
                         </MudMenuItem>
                     }
@@ -111,7 +111,7 @@ else if (!loadingOllama)
     private async Task DownloadModelsDialogAsync()
     {
         var parameters = new DialogParameters<DownloadModels> { { x => x.Ollama, ollama } };
-        var options = new DialogOptions { CloseOnEscapeKey = false, BackdropClick = false, MaxWidth = MaxWidth.Medium, FullWidth = true };
+        var options = new DialogOptions { CloseOnEscapeKey = false, BackdropClick = false, MaxWidth = MaxWidth.Small, FullWidth = true };
         var dialog = await DialogService.ShowAsync<DownloadModels>("Download Models", parameters, options);
         await dialog.Result;
         
