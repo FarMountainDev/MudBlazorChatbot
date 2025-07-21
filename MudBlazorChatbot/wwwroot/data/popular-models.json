@@ -2,11 +2,25 @@
   "deepseek-r1": {
     "deepseek-r1:1.5b": "1.1GB",
     "deepseek-r1:7b": "4.7GB",
-    "deepseek-r1:8b": "4.9GB",
+    "deepseek-r1:8b": "5.2GB",
     "deepseek-r1:14b": "9GB",
     "deepseek-r1:32b": "20GB",
     "deepseek-r1:70b": "43GB",
     "deepseek-r1:671b": "404GB"
+  },
+  "deepseek-coder-v2": {
+    "deepseek-coder-v2:16b": "8.9GB",
+    "deepseek-coder-v2:236b": "133GB"
+  },
+  "gemma3": {
+    "gemma3:1b": "815MB",
+    "gemma3:4b": "3.3GB",
+    "gemma3:12b": "8.1GB",
+    "gemma3:27b": "17GB"
+  },
+  "gemma3n": {
+    "gemma3n:e2b": "5.6GB",
+    "gemma3n:e4b": "7.5GB"
   },
   "llama3.3": {
     "llama3.3:70b": "43GB"
